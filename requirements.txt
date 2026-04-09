@@ -1,3 +1,5 @@
 customtkinter
 faster-whisper
 pypdf
+jellyfish
+num2words

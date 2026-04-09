@@ -19,6 +19,7 @@ class ManuscriptApp(ctk.CTk):
         self.manuscript_path = None
         self.audio_path = None
         self.is_processing = False
+        self.discrepancy_tags = {}
 
         self.setup_ui()
         
@@ -75,6 +76,44 @@ class ManuscriptApp(ctk.CTk):
         self.textbox.tag_config("skipped", foreground="#ff4d4d") # Red
         self.textbox.tag_config("added", foreground="#00cc66")   # Green
         self.textbox.tag_config("match", foreground="grey")       # Neutral gray for correct matches so discrepancies stand out
+        self.textbox.tag_config("ignored", foreground="#8a8a8a", overstrike=True) # Dimmed / Strikethrough for false positives
+        
+        # Bindings for interactive toggling
+        self.textbox.tag_bind("clickable", "<Button-1>", self.on_discrepancy_click)
+        self.textbox.tag_bind("clickable", "<Enter>", lambda e: self.textbox.configure(cursor="hand2"))
+        self.textbox.tag_bind("clickable", "<Leave>", lambda e: self.textbox.configure(cursor=""))
+
+    def on_discrepancy_click(self, event):
+        # Check where the user clicked
+        index = self.textbox.index(f"@{event.x},{event.y}")
+        tags = self.textbox.tag_names(index)
+        
+        chunk_tag = None
+        for t in tags:
+            if t.startswith("chunk_"):
+                chunk_tag = t
+                break
+                
+        if chunk_tag:
+            self.textbox.configure(state="normal")
+            first = f"{chunk_tag}.first"
+            last = f"{chunk_tag}.last"
+            
+            if "ignored" in tags:
+                # Revert to original
+                self.textbox.tag_remove("ignored", first, last)
+                orig_tag = self.discrepancy_tags.get(chunk_tag)
+                if orig_tag:
+                    self.textbox.tag_add(orig_tag, first, last)
+            else:
+                # Dim it (false positive)
+                if "added" in tags:
+                    self.textbox.tag_remove("added", first, last)
+                if "skipped" in tags:
+                    self.textbox.tag_remove("skipped", first, last)
+                self.textbox.tag_add("ignored", first, last)
+                
+            self.textbox.configure(state="disabled")
 
     def select_manuscript(self):
         path = filedialog.askopenfilename(
@@ -107,6 +146,7 @@ class ManuscriptApp(ctk.CTk):
         self.btn_process.configure(state="disabled")
         self.progress.set(0)
         self.lbl_status.configure(text="Parsing manuscript...")
+        self.textbox.configure(state="normal")
         self.textbox.delete("1.0", "end")
 
         # Run in thread to not freeze UI
@@ -143,24 +183,58 @@ class ManuscriptApp(ctk.CTk):
 
     def display_results(self, results):
         self.lbl_status.configure(text="Done.")
+        self.textbox.configure(state="normal")
         self.textbox.delete("1.0", "end")
-        
+        self.discrepancy_tags.clear()
+        chunk_idx = 0
+        current_tag = None
+        current_text = []
+
+        def flush():
+            nonlocal chunk_idx, current_tag
+            if current_text:
+                if current_tag in ('added', 'skipped'):
+                    chunk_tag = f"chunk_{chunk_idx}"
+                    self.discrepancy_tags[chunk_tag] = current_tag
+                    # Apply multiple tags
+                    self.textbox.insert("end", "".join(current_text), (current_tag, chunk_tag, "clickable"))
+                    chunk_idx += 1
+                else:
+                    self.textbox.insert("end", "".join(current_text), current_tag)
+                current_text.clear()
+
         for item in results:
             word = item['word']
             t_type = item['type']
             start_time = item['start']
             
             if t_type == 'added':
+                tag = "added"
                 display_str = f" [{word}] "
                 if start_time is not None:
                     # Provide a small timestamp annotation for added/spoken extra words
-                    display_str = f" [{word} @ {start_time:.1f}s] "
-                self.textbox.insert("end", display_str, "added")
+                    hrs = int(start_time // 3600)
+                    mins = int((start_time % 3600) // 60)
+                    secs = int(start_time % 60)
+                    ts_str = f"{hrs}:{mins:02d}:{secs:02d}"
+                    display_str = f" [{word} @ {ts_str}] "
             elif t_type == 'skipped':
+                tag = "skipped"
                 display_str = f" {{{word}}} "
-                self.textbox.insert("end", display_str, "skipped")
             else:
-                self.textbox.insert("end", f"{word} ", "match")
+                tag = "match"
+                display_str = f"{word} "
+                
+            if tag != current_tag:
+                flush()
+                current_tag = tag
+            
+            current_text.append(display_str)
+            
+        flush()
+        
+        # Disable editing so scrolling and performance remain smooth
+        self.textbox.configure(state="disabled")
 
     def finish_processing(self):
         self.is_processing = False

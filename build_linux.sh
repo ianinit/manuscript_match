@@ -3,10 +3,10 @@
 set -e
 
 echo "Setting up Python virtual environment..."
-# Check if python3-venv is installed, which is sometimes required on Linux Mint/Ubuntu
-if ! dpkg -l | grep -q python3-venv; then
-    echo "python3-venv is not installed. Trying to install it with sudo apt update && sudo apt install python3-venv"
-    sudo apt update && sudo apt install -y python3-venv
+# Check if python-venv and python3-tk are installed, which are often required on Linux Mint/Ubuntu
+if ! dpkg -l | grep -q python3-venv || ! dpkg -l | grep -q python3-tk; then
+    echo "Required system packages (python3-venv, python3-tk) are missing. Attempting to install them with apt..."
+    sudo apt update && sudo apt install -y python3-venv python3-tk
 fi
 
 # Create and activate virtual environment

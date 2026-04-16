@@ -92,5 +92,13 @@ def compare(script_text: str, transcribed_words: List[Dict[str, Any]]) -> List[D
                         'word': transcribed_words[idx]['word'],
                         'start': transcribed_words[idx]['start']
                     })
-                
+                    
+    # Forward-fill and backward-fill missing timestamps so skipped words have an approximate location
+    last_known_time = 0.0
+    for r in results:
+        if r['start'] is not None:
+            last_known_time = r['start']
+        else:
+            r['start'] = last_known_time
+            
     return results

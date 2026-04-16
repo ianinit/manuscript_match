@@ -1,7 +1,7 @@
 # -*- mode: python ; coding: utf-8 -*-
-from PyInstaller.utils.hooks import collect_all
+from PyInstaller.utils.hooks import collect_all, collect_data_files
 
-datas = [('C:\\Users\\ianco\\Code\\Manuscript Match\\.venv\\Lib\\site-packages\\customtkinter', 'customtkinter/')]
+datas = collect_data_files('customtkinter')
 binaries = []
 hiddenimports = []
 tmp_ret = collect_all('faster_whisper')

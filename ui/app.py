@@ -221,6 +221,12 @@ class ManuscriptApp(ctk.CTk):
             elif t_type == 'skipped':
                 tag = "skipped"
                 display_str = f" {{{word}}} "
+                if start_time is not None:
+                    hrs = int(start_time // 3600)
+                    mins = int((start_time % 3600) // 60)
+                    secs = int(start_time % 60)
+                    ts_str = f"{hrs}:{mins:02d}:{secs:02d}"
+                    display_str = f" {{{word} @ {ts_str}}} "
             else:
                 tag = "match"
                 display_str = f"{word} "

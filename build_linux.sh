@@ -19,8 +19,11 @@ pip install -r requirements.txt
 pip install pyinstaller
 
 echo "Building executable with PyInstaller..."
+# Clear old build directories to force PyInstaller to detect tkinter
+rm -rf build/ dist/
+
 # We use the existing ManuscriptMatch.spec which has been made cross-platform
-pyinstaller ManuscriptMatch.spec --noconfirm
+pyinstaller ManuscriptMatch.spec --noconfirm --clean
 
 echo ""
 echo "=========================================================="

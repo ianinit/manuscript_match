@@ -34,32 +34,47 @@ class ManuscriptApp(ctk.CTk):
             )
 
     def setup_ui(self):
-        # Top Frame for File Selection
+        # Input Frame for Manuscript and Audio
         self.top_frame = ctk.CTkFrame(self)
         self.top_frame.pack(pady=10, padx=10, fill="x")
         
-        # Manuscript Selector
-        self.lbl_manuscript = ctk.CTkLabel(self.top_frame, text="No Manuscript Selected.")
-        self.lbl_manuscript.grid(row=0, column=0, padx=10, pady=10, sticky="w")
-        self.btn_manuscript = ctk.CTkButton(self.top_frame, text="Select Manuscript (TXT/PDF)", command=self.select_manuscript)
-        self.btn_manuscript.grid(row=0, column=1, padx=10, pady=10)
+        # Manuscript Paste / Upload Section
+        self.ms_lbl = ctk.CTkLabel(self.top_frame, text="Paste Manuscript Text or Upload File:", font=("Arial", 14, "bold"))
+        self.ms_lbl.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        
+        self.btn_manuscript = ctk.CTkButton(self.top_frame, text="Upload File (TXT/PDF)", command=self.select_manuscript, width=150)
+        self.btn_manuscript.grid(row=0, column=1, padx=10, pady=5, sticky="e")
+        
+        # We use a CTkTextbox for input
+        self.ms_textbox = ctk.CTkTextbox(self.top_frame, height=120, wrap="word")
+        self.ms_textbox.grid(row=1, column=0, columnspan=2, padx=10, pady=5, sticky="nsew")
+        self.top_frame.rowconfigure(1, weight=1)
+        self.top_frame.columnconfigure(0, weight=1)
+
+        # Bind key events to check_ready so we detect typing/pasting
+        self.ms_textbox.bind("<KeyRelease>", self.check_ready)
 
         # Audio Selector
-        self.lbl_audio = ctk.CTkLabel(self.top_frame, text="No Audio Selected.")
-        self.lbl_audio.grid(row=1, column=0, padx=10, pady=10, sticky="w")
-        self.btn_audio = ctk.CTkButton(self.top_frame, text="Select Audio (WAV/MP3)", command=self.select_audio)
-        self.btn_audio.grid(row=1, column=1, padx=10, pady=10)
+        self.audio_frame = ctk.CTkFrame(self.top_frame, fg_color="transparent")
+        self.audio_frame.grid(row=2, column=0, columnspan=2, sticky="ew", pady=(10, 0))
+        self.audio_frame.columnconfigure(0, weight=1)
+        
+        self.lbl_audio = ctk.CTkLabel(self.audio_frame, text="No Audio Selected.")
+        self.lbl_audio.grid(row=0, column=0, padx=10, pady=5, sticky="w")
+        
+        self.btn_audio = ctk.CTkButton(self.audio_frame, text="Select Audio (WAV/MP3)", command=self.select_audio, width=150)
+        self.btn_audio.grid(row=0, column=1, padx=10, pady=5, sticky="e")
 
         # Process Button & Progress
         self.btn_process = ctk.CTkButton(self.top_frame, text="Start Match", command=self.start_processing, state="disabled")
-        self.btn_process.grid(row=2, column=0, columnspan=2, pady=10)
+        self.btn_process.grid(row=3, column=0, columnspan=2, pady=10)
 
         self.progress = ctk.CTkProgressBar(self.top_frame)
-        self.progress.grid(row=3, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
+        self.progress.grid(row=4, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
         self.progress.set(0)
         
         self.lbl_status = ctk.CTkLabel(self.top_frame, text="")
-        self.lbl_status.grid(row=4, column=0, columnspan=2)
+        self.lbl_status.grid(row=5, column=0, columnspan=2)
 
         # Output Text Area
         self.output_frame = ctk.CTkFrame(self)
@@ -121,8 +136,12 @@ class ManuscriptApp(ctk.CTk):
             filetypes=[("Text/PDF Files", "*.txt *.pdf"), ("All Files", "*.*")]
         )
         if path:
-            self.manuscript_path = path
-            self.lbl_manuscript.configure(text=f"Script: {os.path.basename(path)}")
+            text = parse_manuscript(path)
+            if not text.strip():
+                messagebox.showerror("Error", f"Could not extract text from {os.path.basename(path)}")
+                return
+            self.ms_textbox.delete("1.0", "end")
+            self.ms_textbox.insert("1.0", text)
             self.check_ready()
 
     def select_audio(self):
@@ -135,35 +154,34 @@ class ManuscriptApp(ctk.CTk):
             self.lbl_audio.configure(text=f"Audio: {os.path.basename(path)}")
             self.check_ready()
 
-    def check_ready(self):
-        if self.manuscript_path and self.audio_path and not self.is_processing:
+    def check_ready(self, event=None):
+        has_text = len(self.ms_textbox.get("1.0", "end-1c").strip()) > 0
+        if has_text and self.audio_path and not self.is_processing:
             self.btn_process.configure(state="normal")
         else:
             self.btn_process.configure(state="disabled")
 
     def start_processing(self):
+        script_text = self.ms_textbox.get("1.0", "end-1c").strip()
+        if not script_text:
+            return
+            
         self.is_processing = True
         self.btn_process.configure(state="disabled")
         self.progress.set(0)
-        self.lbl_status.configure(text="Parsing manuscript...")
+        self.lbl_status.configure(text="Preparing to transcribe...")
         self.textbox.configure(state="normal")
         self.textbox.delete("1.0", "end")
 
-        # Run in thread to not freeze UI
-        threading.Thread(target=self.process_task, daemon=True).start()
+        # Run in thread to not freeze UI, passing the text safely
+        threading.Thread(target=self.process_task, args=(script_text,), daemon=True).start()
 
     def update_progress(self, val):
         self.after(0, lambda: self.progress.set(val))
         self.after(0, lambda: self.lbl_status.configure(text=f"Transcribing... {int(val*100)}%"))
 
-    def process_task(self):
+    def process_task(self, script_text):
         try:
-            script_text = parse_manuscript(self.manuscript_path)
-            if not script_text.strip():
-                self.after(0, lambda: messagebox.showerror("Error", "Could not extract text from manuscript."))
-                self.finish_processing()
-                return
-
             self.after(0, lambda: self.lbl_status.configure(text="Loading Whisper model... (This may take a moment window)"))
             transcriber = Transcriber(model_size="small")
             

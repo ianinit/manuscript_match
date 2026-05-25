@@ -49,11 +49,20 @@ def compare(script_text: str, transcribed_words: List[Dict[str, Any]]) -> List[D
         elif tag == 'delete':
             # Skipped (in script, but not spoken/transcribed)
             for idx in range(i1, i2):
-                results.append({
-                    'type': 'skipped',
-                    'word': script_tokens[idx],
-                    'start': None 
-                })
+                word_val = script_tokens[idx]
+                if not get_match_key(word_val):
+                    # It's pure punctuation (like a dash). Treat as match so it's not marked skipped.
+                    results.append({
+                        'type': 'match',
+                        'word': word_val,
+                        'start': None
+                    })
+                else:
+                    results.append({
+                        'type': 'skipped',
+                        'word': word_val,
+                        'start': None 
+                    })
         elif tag == 'insert':
             # Added (spoken/transcribed, but not in script)
             for idx in range(j1, j2):

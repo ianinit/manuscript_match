@@ -2,11 +2,19 @@ from faster_whisper import WhisperModel
 from typing import Callable, List, Dict, Any
 
 class Transcriber:
-    def __init__(self, model_size: str = "base"):
+    def __init__(self, model_size: str = "base", device: str = "cpu"):
         self.model_size = model_size
-        # To avoid blocking the UI, device="cpu" is safer without knowing CUDA availability.
-        # "int8" helps keep memory usage low.
-        self.model = WhisperModel(model_size, device="cpu", compute_type="int8")
+        self.device = device
+        
+        try:
+            self.model = WhisperModel(model_size, device=device, compute_type="int8")
+        except Exception as e:
+            # Fallback to cpu if gpu/auto fails
+            if device != "cpu":
+                print(f"Warning: Failed to load model on {device}. Falling back to cpu. Error: {e}")
+                self.model = WhisperModel(model_size, device="cpu", compute_type="int8")
+            else:
+                raise e
 
     def transcribe(self, audio_path: str, progress_callback: Callable[[float], None] = None) -> List[Dict[str, Any]]:
         """

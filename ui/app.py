@@ -65,16 +65,33 @@ class ManuscriptApp(ctk.CTk):
         self.btn_audio = ctk.CTkButton(self.audio_frame, text="Select Audio (WAV/MP3)", command=self.select_audio, width=150)
         self.btn_audio.grid(row=0, column=1, padx=10, pady=5, sticky="e")
 
+        # Options Frame
+        self.options_frame = ctk.CTkFrame(self.top_frame, fg_color="transparent")
+        self.options_frame.grid(row=3, column=0, columnspan=2, sticky="ew", pady=(5, 5))
+        self.options_frame.columnconfigure((0, 1, 2, 3), weight=1)
+
+        self.lbl_model = ctk.CTkLabel(self.options_frame, text="Model Size:")
+        self.lbl_model.grid(row=0, column=0, padx=5, pady=5, sticky="e")
+        self.opt_model = ctk.CTkOptionMenu(self.options_frame, values=["tiny", "base", "small", "medium"])
+        self.opt_model.grid(row=0, column=1, padx=5, pady=5, sticky="w")
+        self.opt_model.set("base") # default to base
+
+        self.lbl_device = ctk.CTkLabel(self.options_frame, text="Compute Device:")
+        self.lbl_device.grid(row=0, column=2, padx=5, pady=5, sticky="e")
+        self.opt_device = ctk.CTkOptionMenu(self.options_frame, values=["auto", "cpu", "cuda"])
+        self.opt_device.grid(row=0, column=3, padx=5, pady=5, sticky="w")
+        self.opt_device.set("auto")
+
         # Process Button & Progress
         self.btn_process = ctk.CTkButton(self.top_frame, text="Start Match", command=self.start_processing, state="disabled")
-        self.btn_process.grid(row=3, column=0, columnspan=2, pady=10)
+        self.btn_process.grid(row=4, column=0, columnspan=2, pady=10)
 
         self.progress = ctk.CTkProgressBar(self.top_frame)
-        self.progress.grid(row=4, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
+        self.progress.grid(row=5, column=0, columnspan=2, padx=10, pady=10, sticky="ew")
         self.progress.set(0)
         
         self.lbl_status = ctk.CTkLabel(self.top_frame, text="")
-        self.lbl_status.grid(row=5, column=0, columnspan=2)
+        self.lbl_status.grid(row=6, column=0, columnspan=2)
 
         # Output Text Area
         self.output_frame = ctk.CTkFrame(self)
@@ -173,17 +190,20 @@ class ManuscriptApp(ctk.CTk):
         self.textbox.configure(state="normal")
         self.textbox.delete("1.0", "end")
 
+        model_size = self.opt_model.get()
+        device = self.opt_device.get()
+
         # Run in thread to not freeze UI, passing the text safely
-        threading.Thread(target=self.process_task, args=(script_text,), daemon=True).start()
+        threading.Thread(target=self.process_task, args=(script_text, model_size, device), daemon=True).start()
 
     def update_progress(self, val):
         self.after(0, lambda: self.progress.set(val))
         self.after(0, lambda: self.lbl_status.configure(text=f"Transcribing... {int(val*100)}%"))
 
-    def process_task(self, script_text):
+    def process_task(self, script_text, model_size, device):
         try:
             self.after(0, lambda: self.lbl_status.configure(text="Loading Whisper model... (This may take a moment window)"))
-            transcriber = Transcriber(model_size="small")
+            transcriber = Transcriber(model_size=model_size, device=device)
             
             self.after(0, lambda: self.lbl_status.configure(text="Transcribing audio..."))
             transcribed_words = transcriber.transcribe(self.audio_path, progress_callback=self.update_progress)

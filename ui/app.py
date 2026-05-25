@@ -15,6 +15,11 @@ class ManuscriptApp(ctk.CTk):
         super().__init__()
         self.title("Manuscript Match")
         self.geometry("1000x800")
+        
+        # Set app icon if available
+        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icon.ico")
+        if os.path.exists(icon_path):
+            self.iconbitmap(icon_path)
 
         self.manuscript_path = None
         self.audio_path = None

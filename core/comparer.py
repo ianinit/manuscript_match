@@ -18,7 +18,14 @@ def compare(script_text: str, transcribed_words: List[Dict[str, Any]]) -> List[D
     
     def get_match_key(w: str) -> str:
         w_clean = re.sub(r'[^\w\s]', '', w).lower()
-        if w_clean.isdigit():
+        
+        ordinal_match = re.match(r'^(\d+)(st|nd|rd|th)$', w_clean)
+        if ordinal_match:
+            try:
+                w_clean = num2words(int(ordinal_match.group(1)), to='ordinal').replace("-", "").replace(" ", "")
+            except Exception:
+                pass
+        elif w_clean.isdigit():
             try:
                 # Convert numbers to words (e.g. "50" -> "fifty")
                 w_clean = num2words(int(w_clean)).replace("-", "").replace(" ", "")
@@ -90,11 +97,19 @@ def compare(script_text: str, transcribed_words: List[Dict[str, Any]]) -> List[D
             else:
                 # Mismatch. Treat as script word skipped, audio word added.
                 for idx in range(i1, i2):
-                    results.append({
-                        'type': 'skipped',
-                        'word': script_tokens[idx],
-                        'start': None
-                    })
+                    word_val = script_tokens[idx]
+                    if not get_match_key(word_val):
+                        results.append({
+                            'type': 'match',
+                            'word': word_val,
+                            'start': None
+                        })
+                    else:
+                        results.append({
+                            'type': 'skipped',
+                            'word': word_val,
+                            'start': None
+                        })
                 for idx in range(j1, j2):
                     results.append({
                         'type': 'added',

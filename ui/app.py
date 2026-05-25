@@ -1,7 +1,7 @@
 import os
 import threading
 import customtkinter as ctk
-from tkinter import filedialog, messagebox
+from tkinter import filedialog, messagebox, PhotoImage
 
 from core.audio_utils import check_ffmpeg, parse_manuscript
 from core.transcriber import Transcriber
@@ -17,9 +17,17 @@ class ManuscriptApp(ctk.CTk):
         self.geometry("1000x800")
         
         # Set app icon if available
-        icon_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "assets", "icon.ico")
-        if os.path.exists(icon_path):
-            self.iconbitmap(icon_path)
+        import sys
+        base_dir = os.path.dirname(os.path.dirname(__file__))
+        if sys.platform.startswith("win"):
+            icon_path = os.path.join(base_dir, "assets", "icon.ico")
+            if os.path.exists(icon_path):
+                self.iconbitmap(icon_path)
+        else:
+            icon_path = os.path.join(base_dir, "assets", "icon.png")
+            if os.path.exists(icon_path):
+                img = PhotoImage(file=icon_path)
+                self.iconphoto(False, img)
 
         self.manuscript_path = None
         self.audio_path = None

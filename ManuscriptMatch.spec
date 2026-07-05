@@ -15,8 +15,14 @@ datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 for pkg_name in ["nvidia.cublas", "nvidia.cudnn", "nvidia.cuda_runtime"]:
     try:
         pkg = importlib.import_module(pkg_name)
-        if pkg.__file__:
+        pkg_dir = None
+        if hasattr(pkg, "__file__") and pkg.__file__:
             pkg_dir = os.path.dirname(pkg.__file__)
+        elif hasattr(pkg, "__path__") and pkg.__path__:
+            # Namespace packages have __path__ instead of __file__
+            pkg_dir = list(pkg.__path__)[0]
+
+        if pkg_dir:
             # On Windows, DLLs are in the bin/ directory
             bin_dir = os.path.join(pkg_dir, "bin")
             if os.path.exists(bin_dir):

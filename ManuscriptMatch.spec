@@ -1,4 +1,6 @@
 # -*- mode: python ; coding: utf-8 -*-
+import os
+import importlib
 from PyInstaller.utils.hooks import collect_all, collect_data_files
 
 datas = collect_data_files('customtkinter')
@@ -8,6 +10,23 @@ tmp_ret = collect_all('faster_whisper')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
 tmp_ret = collect_all('ctranslate2')
 datas += tmp_ret[0]; binaries += tmp_ret[1]; hiddenimports += tmp_ret[2]
+
+# Collect NVIDIA DLLs if they are installed in the environment (e.g. Windows/Linux GPU packages)
+for pkg_name in ["nvidia.cublas", "nvidia.cudnn", "nvidia.cuda_runtime"]:
+    try:
+        pkg = importlib.import_module(pkg_name)
+        if pkg.__file__:
+            pkg_dir = os.path.dirname(pkg.__file__)
+            # On Windows, DLLs are in the bin/ directory
+            bin_dir = os.path.join(pkg_dir, "bin")
+            if os.path.exists(bin_dir):
+                binaries.append((os.path.join(bin_dir, "*.dll"), "."))
+            # On Linux, shared libraries are in the lib/ directory
+            lib_dir = os.path.join(pkg_dir, "lib")
+            if os.path.exists(lib_dir):
+                binaries.append((os.path.join(lib_dir, "*.so*"), "."))
+    except ImportError:
+        pass
 
 
 a = Analysis(

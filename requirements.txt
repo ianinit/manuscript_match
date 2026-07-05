@@ -3,3 +3,6 @@ faster-whisper
 pypdf
 jellyfish
 num2words
+nvidia-cublas-cu12; platform_system == "Windows"
+nvidia-cudnn-cu12; platform_system == "Windows"
+nvidia-cuda-runtime-cu12; platform_system == "Windows"

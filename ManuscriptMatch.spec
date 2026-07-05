@@ -24,13 +24,15 @@ for pkg_name in ["nvidia.cublas", "nvidia.cudnn", "nvidia.cuda_runtime"]:
 
         if pkg_dir:
             # On Windows, DLLs are in the bin/ directory
-            bin_dir = os.path.join(pkg_dir, "bin")
-            if os.path.exists(bin_dir):
-                binaries.append((os.path.join(bin_dir, "*.dll"), "."))
-            # On Linux, shared libraries are in the lib/ directory
-            lib_dir = os.path.join(pkg_dir, "lib")
-            if os.path.exists(lib_dir):
-                binaries.append((os.path.join(lib_dir, "*.so*"), "."))
+            if os.name == 'nt':
+                bin_dir = os.path.join(pkg_dir, "bin")
+                if os.path.exists(bin_dir):
+                    binaries.append((os.path.join(bin_dir, "*.dll"), "."))
+            else:
+                # On Linux, shared libraries are in the lib/ directory
+                lib_dir = os.path.join(pkg_dir, "lib")
+                if os.path.exists(lib_dir):
+                    binaries.append((os.path.join(lib_dir, "*.so*"), "."))
     except ImportError:
         pass
 
